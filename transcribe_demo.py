@@ -6,6 +6,7 @@ import numpy as np
 import speech_recognition as sr
 import whisper
 import torch
+import keyboard
 
 from datetime import datetime, timedelta
 from queue import Queue
@@ -90,53 +91,64 @@ def main():
     print("Model loaded.\n")
 
     while True:
-        try:
-            now = datetime.utcnow()
-            # Pull raw recorded audio from the queue.
-            if not data_queue.empty():
-                phrase_complete = False
-                # If enough time has passed between recordings, consider the phrase complete.
-                # Clear the current working audio buffer to start over with the new data.
-                if phrase_time and now - phrase_time > timedelta(seconds=phrase_timeout):
-                    phrase_complete = True
-                # This is the last time we received new audio data from the queue.
-                phrase_time = now
-                
-                # Combine audio data from queue
-                audio_data = b''.join(data_queue.queue)
-                data_queue.queue.clear()
-                
-                # Convert in-ram buffer to something the model can use directly without needing a temp file.
-                # Convert data from 16 bit wide integers to floating point with a width of 32 bits.
-                # Clamp the audio stream frequency to a PCM wavelength compatible default of 32768hz max.
-                audio_np = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32) / 32768.0
-
-                # Read the transcription.
-                result = audio_model.transcribe(audio_np, fp16=torch.cuda.is_available())
-                text = result['text'].strip()
-
-                # If we detected a pause between recordings, add a new item to our transcription.
-                # Otherwise edit the existing one.
-                if phrase_complete:
-                    transcription.append(text)
-                else:
-                    transcription[-1] = text
-
-                # Clear the console to reprint the updated transcription.
-                os.system('cls' if os.name=='nt' else 'clear')
-                for line in transcription:
-                    print(line)
-                # Flush stdout.
-                print('', end='', flush=True)
-            else:
-                # Infinite loops are bad for processors, must sleep.
-                sleep(0.25)
-        except KeyboardInterrupt:
+        if keyboard.is_pressed('q'):
             break
+        now = datetime.utcnow()
+        # Pull raw recorded audio from the queue.
+        if not data_queue.empty():
+            phrase_complete = False
+            # If enough time has passed between recordings, consider the phrase complete.
+            # Clear the current working audio buffer to start over with the new data.
+            if phrase_time and now - phrase_time > timedelta(seconds=phrase_timeout):
+                phrase_complete = True
+            # This is the last time we received new audio data from the queue.
+            phrase_time = now
 
-    print("\n\nTranscription:")
+            # Combine audio data from queue
+            audio_data = b''.join(data_queue.queue)
+            data_queue.queue.clear()
+
+            # Convert in-ram buffer to something the model can use directly without needing a temp file.
+            # Convert data from 16-bit wide integers to floating point with a width of 32 bits.
+            # Clamp the audio stream frequency to a PCM wavelength compatible default of 32768hz max.
+            audio_np = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32) / 32768.0
+
+            # Read the transcription.
+            result = audio_model.transcribe(audio_np, fp16=torch.cuda.is_available())
+            text = result['text'].strip()
+
+            # If we detected a pause between recordings, add a new item to our transcription.
+            # Otherwise edit the existing one.
+            if phrase_complete:
+                transcription.append(text)
+            else:
+                transcription[-1] = text
+
+            # Clear the console to reprint the updated transcription.
+            os.system('cls' if os.name=='nt' else 'clear')
+            #print(transcription[-1])
+            for line in transcription:
+                print(line)
+            # Flush stdout.
+            print('', end='', flush=True)
+        else:
+            # Infinite loops are bad for processors, must sleep.
+            sleep(0.25)
+
+    # Archives all previous transcriptions for later use
+    with open('transcription.txt', 'r') as txt_obj1:
+        text = txt_obj1.read().rstrip('\n')
+        # Checks if the file contains text already
+        with open('past_transcriptions.txt', 'a') as txt_obj2:
+            txt_obj2.write(text + '\n')
+            txt_obj2.close()
+        txt_obj1.close()
+
+    # Writes to txt file for preliminary preprocessing
+    f = open('transcription.txt', 'w')
     for line in transcription:
-        print(line)
+        f.write(line + ' ')
+    f.close()
 
 
 if __name__ == "__main__":
