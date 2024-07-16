@@ -6,41 +6,67 @@ from nltk.stem import WordNetLemmatizer
 from string import punctuation
 
 
-def main():
-    lemmatizer = WordNetLemmatizer()
-
+def get_stopwords(stopword_file) -> list:
+    stopwords = []
     try:
         # Collect all stopwords from asl_stopwords.csv; add to it at any time
-        with open("asl_stopwords.csv", newline="") as sw_file:
-            stopwords = []
+        with open(stopword_file, newline="") as sw_file:
             for word in csv.reader(sw_file):
                 stopwords.append(word[0])
+    except FileNotFoundError:
+        pass
+    return stopwords
+
+
+def get_transcription(transcription_file) -> str:
+    transcription = ''
+    try:
         # Convert transcription text file to a string
-        with open("transcription.txt", "r") as txt_obj:
-            text = txt_obj.read()
+        with open(transcription_file, "r") as txt_obj:
+            transcription = txt_obj.read()
             txt_obj.close()
     except FileNotFoundError:
         pass
+    return transcription
 
+
+def get_proper_nouns(transcription) -> list:
     # Proper noun extraction
-    nlp = en_core_web_sm.load()
     proper_nouns = []
-    for word in nlp(text):
+    nlp = en_core_web_sm.load()
+    for word in nlp(transcription):
         if word.pos_ == 'PROPN':
             proper_nouns.append(word.text)
-    print(proper_nouns)
+    return proper_nouns
 
-    # Create tokenized sentences from transcription
-    sentences = tk.sent_tokenize(text)
-    words = [tk.word_tokenize(sentence) for sentence in sentences]
-    tokenized_words = [[] for l in range(len(words))]
 
+def get_sentences(transcription) -> list:
+    return tk.sent_tokenize(transcription)
+
+
+def tokenize_sentences(sentences) -> list[list]:
+    return [tk.word_tokenize(sentence) for sentence in sentences]
+
+
+def remove_preliminaries(words, *prelims) -> list:
     # Remove all punctuation/stopwords from token list; leaves only words
+    tokenized_words = []
     for i in range(len(words)):
         for j in range(len(words[i])):
             token = words[i][j].lower()
-            if token not in punctuation and token not in stopwords:
-                tokenized_words[i].append(token)
+            for prelim in prelims:
+                if token not in punctuation and token not in prelim:
+                    tokenized_words[i].append(token)
+    return tokenized_words
+
+
+def main():
+    stopwords = get_stopwords("asl_stopwords.csv")
+    transcription = get_transcription("transcription.txt")
+    proper_nouns = get_proper_nouns(transcription)
+    sentences = get_sentences(transcription)
+    words = tokenize_sentences(sentences)
+    tokenized_words = remove_preliminaries(words, stopwords)
 
 
 if __name__ == "__main__":
