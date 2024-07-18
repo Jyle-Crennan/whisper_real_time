@@ -1,8 +1,9 @@
 import csv
 import nltk.tokenize as tk
 import en_core_web_sm
+import contractions
+import spacy
 
-from nltk.stem import WordNetLemmatizer
 from string import punctuation
 
 
@@ -41,32 +42,68 @@ def get_proper_nouns(transcription) -> list:
 
 
 def get_sentences(transcription) -> list:
+    # Split transcription into sentences based off punctuation
     return tk.sent_tokenize(transcription)
 
 
 def tokenize_sentences(sentences) -> list[list]:
+    # Break apart sentences into smaller components; includes partial contractions and punctuation
     return [tk.word_tokenize(sentence) for sentence in sentences]
 
 
-def remove_preliminaries(words, *prelims) -> list:
+def remove_preliminaries(tokens, *prelims) -> list:
     # Remove all punctuation/stopwords from token list; leaves only words
-    tokenized_words = []
-    for i in range(len(words)):
-        for j in range(len(words[i])):
-            token = words[i][j].lower()
+    words = [[] for l in range(len(tokens))]
+    for i in range(len(tokens)):
+        for j in range(len(tokens[i])):
+            token = tokens[i][j].lower()
             for prelim in prelims:
                 if token not in punctuation and token not in prelim:
-                    tokenized_words[i].append(token)
-    return tokenized_words
+                    words[i].append(token)
+    return words
+
+
+def expand_contractions(transcription) -> str:
+    # Deals with contracted words, so they do not have to be removed after tokenization
+    return contractions.fix(transcription)
+
+
+def spacify(transcription) -> list:
+    features = []
+    nlp = spacy.load('en_core_web_sm')
+    text = nlp(transcription)
+    for token in text:
+        token_feats = {
+            'token': token.text,
+            'lemma': token.lemma_,
+            'pos': token.pos_,
+            'shape': token.shape_,
+            'is_aplha': token.is_alpha,
+            'is_stop': token.is_stop
+        }
+        #features.append([feature for feature in token_feats.values()])
+        features.append(token_feats)
+    return features
 
 
 def main():
+    transcription = expand_contractions(get_transcription("transcription.txt"))
+    #print(transcription)
+
     stopwords = get_stopwords("asl_stopwords.csv")
-    transcription = get_transcription("transcription.txt")
+    #print(stopwords)
     proper_nouns = get_proper_nouns(transcription)
+    #print(proper_nouns)
+
     sentences = get_sentences(transcription)
-    words = tokenize_sentences(sentences)
-    tokenized_words = remove_preliminaries(words, stopwords)
+    #print(sentences)
+    tokens = tokenize_sentences(sentences)
+    #print(tokens)
+    words = remove_preliminaries(tokens, stopwords)
+    #print(words)
+
+    for feature in spacify(transcription):
+        print([feat for feat in feature.values()])
 
 
 if __name__ == "__main__":

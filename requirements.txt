@@ -2,7 +2,10 @@ setuptools
 pyaudio
 SpeechRecognition
 --extra-index-url https://download.pytorch.org/whl/cu116
-torch
-numpy
+torch~=2.3.1
+numpy~=1.26.4
 git+https://github.com/openai/whisper.git
-nltk
+nltk~=3.8.1
+contractions~=0.1.73
+spacy~=3.7.2
+keyboard~=0.13.5
