@@ -1,1 +1,1 @@
-Kyle and James have been working on a model they would like to show you. It is based on the GRU deep learning model and it is modified for ASL recognition.
+Emma said that she thinks that Nelson really likes to dance, because he goes to the dancing studio four times a week.

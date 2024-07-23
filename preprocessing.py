@@ -48,9 +48,18 @@ def get_proper_nouns(transcription) -> list:
 
 
 def get_corefs(transcription):
+    nlp = en_core_web_sm.load()
     nlp_coref = en_coreference_web_trf.load()
-    doc = nlp_coref(transcription)
-    print(doc.spans)
+    nlp_coref.replace_listeners('transformer', 'coref', ['model.tok2vec'])
+    nlp_coref.replace_listeners('transformer', 'span_resolver', ['model.tok2vec'])
+    nlp.add_pipe('coref', source=nlp_coref)
+    nlp.add_pipe('span_resolver', source=nlp_coref)
+    doc = nlp(transcription)
+    # Are you fucking shitting me?
+    # An explicit cast from a non-iterable object type to a dict was the issue?
+    corefs = dict(doc.spans)
+    for coref in corefs.values():
+        print(coref)
 
 
 def get_sentences(transcription) -> list:
