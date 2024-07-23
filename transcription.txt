@@ -1,1 +1,1 @@
-Kyle went to work for NASA the other day. He didn't really know why y'all wanted to work there so much. He's still learning.
+Kyle and James have been working on a model they would like to show you. It is based on the GRU deep learning model and it is modified for ASL recognition.

@@ -1,10 +1,16 @@
 import csv
 import nltk.tokenize as tk
-import en_core_web_sm
 import contractions
 import spacy
+import spacy_experimental
 
 from string import punctuation
+from spacy.tokens.span_group import SpanGroup
+from spacy.tokens import Span
+
+# spaCy models
+import en_core_web_sm
+import en_coreference_web_trf
 
 
 def get_stopwords(stopword_file) -> list:
@@ -41,6 +47,12 @@ def get_proper_nouns(transcription) -> list:
     return proper_nouns
 
 
+def get_corefs(transcription):
+    nlp_coref = en_coreference_web_trf.load()
+    doc = nlp_coref(transcription)
+    print(doc.spans)
+
+
 def get_sentences(transcription) -> list:
     # Split transcription into sentences based off punctuation
     return tk.sent_tokenize(transcription)
@@ -69,6 +81,7 @@ def expand_contractions(transcription) -> str:
 
 
 def spacify(transcription) -> list:
+    # Returns a list of dicts
     features = []
     nlp = spacy.load('en_core_web_sm')
     text = nlp(transcription)
@@ -77,13 +90,14 @@ def spacify(transcription) -> list:
             'token': token.text,
             'lemma': token.lemma_,
             'pos': token.pos_,
-            'shape': token.shape_,
-            'is_aplha': token.is_alpha,
-            'is_stop': token.is_stop
+            'coref': token
         }
-        #features.append([feature for feature in token_feats.values()])
         features.append(token_feats)
     return features
+
+
+def aslify(features: list) -> str:
+    return ''
 
 
 def main():
@@ -102,8 +116,10 @@ def main():
     words = remove_preliminaries(tokens, stopwords)
     #print(words)
 
-    for feature in spacify(transcription):
-        print([feat for feat in feature.values()])
+    #for feature in spacify(transcription):
+    #    print([feat for feat in feature.values()])
+
+    get_corefs(transcription)
 
 
 if __name__ == "__main__":
