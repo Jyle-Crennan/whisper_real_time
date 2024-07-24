@@ -1,4 +1,5 @@
 import csv
+import string
 import nltk.tokenize as tk
 import contractions
 import spacy
@@ -37,29 +38,26 @@ def get_transcription(transcription_file) -> str:
     return transcription
 
 
-def get_proper_nouns(transcription) -> list:
+def get_proper_nouns(doc) -> list:
     # Proper noun extraction
     proper_nouns = []
-    nlp = en_core_web_sm.load()
-    for word in nlp(transcription):
+    for word in doc:
         if word.pos_ == 'PROPN':
             proper_nouns.append(word.text)
     return proper_nouns
 
 
-def get_corefs(transcription):
-    nlp = en_core_web_sm.load()
-    nlp_coref = en_coreference_web_trf.load()
-    nlp_coref.replace_listeners('transformer', 'coref', ['model.tok2vec'])
-    nlp_coref.replace_listeners('transformer', 'span_resolver', ['model.tok2vec'])
-    nlp.add_pipe('coref', source=nlp_coref)
-    nlp.add_pipe('span_resolver', source=nlp_coref)
-    doc = nlp(transcription)
-    # Are you fucking shitting me?
-    # An explicit cast from a non-iterable object type to a dict was the issue?
-    corefs = dict(doc.spans)
-    for coref in corefs.values():
-        print(coref)
+def get_corefs(doc, include_heads) -> list[list[str]]:
+    # Convert the spaCy span object to a dict; extracts coref clusters from values
+    # Ex. [[Emma said, she thinks], [Nelson really, he goes]]
+    coref_clusters = [[str(span) for span in list(coref)] for coref in dict(doc.spans).values()]
+    # Only extract the heads from the clusters (front half of coref_clusters)
+    # Ex. [[Emma, she], [Nelson, he]]
+    head_clusters = coref_clusters[:len(coref_clusters)//2]
+    if include_heads:
+        return head_clusters
+    else:
+        return coref_clusters
 
 
 def get_sentences(transcription) -> list:
@@ -89,18 +87,23 @@ def expand_contractions(transcription) -> str:
     return contractions.fix(transcription)
 
 
-def spacify(transcription) -> list:
+def spacify(doc) -> list[dict]:
     # Returns a list of dicts
     features = []
-    nlp = spacy.load('en_core_web_sm')
-    text = nlp(transcription)
-    for token in text:
+    corefs = get_corefs(doc, True)
+    print(corefs)
+    for token in doc:
         token_feats = {
             'token': token.text,
             'lemma': token.lemma_,
-            'pos': token.pos_,
-            'coref': token
+            'pos': token.pos_
         }
+        for coref in corefs:
+            if token.text in coref:
+                token_feats['coref'] = [n for n in coref if n != token.text]
+                break
+            else:
+                token_feats['coref'] = []
         features.append(token_feats)
     return features
 
@@ -110,25 +113,36 @@ def aslify(features: list) -> str:
 
 
 def main():
+    nlp = en_core_web_sm.load()
+    nlp_coref = en_coreference_web_trf.load()
+    nlp_coref.replace_listeners('transformer', 'coref', ['model.tok2vec'])
+    nlp_coref.replace_listeners('transformer', 'span_resolver', ['model.tok2vec'])
+    nlp.add_pipe('coref', source=nlp_coref)
+    nlp.add_pipe('span_resolver', source=nlp_coref)
+
     transcription = expand_contractions(get_transcription("transcription.txt"))
-    #print(transcription)
+    print(transcription)
+    doc = nlp(transcription)
 
     stopwords = get_stopwords("asl_stopwords.csv")
     #print(stopwords)
-    proper_nouns = get_proper_nouns(transcription)
+    proper_nouns = get_proper_nouns(doc)
     #print(proper_nouns)
 
     sentences = get_sentences(transcription)
     #print(sentences)
+    #for sentence in sentences:
+    #    print(get_proper_nouns(nlp(sentence)))
+
     tokens = tokenize_sentences(sentences)
     #print(tokens)
     words = remove_preliminaries(tokens, stopwords)
     #print(words)
 
-    #for feature in spacify(transcription):
-    #    print([feat for feat in feature.values()])
+    #print(get_corefs(doc, False))
 
-    get_corefs(transcription)
+    for test in spacify(doc):
+        print(test)
 
 
 if __name__ == "__main__":
