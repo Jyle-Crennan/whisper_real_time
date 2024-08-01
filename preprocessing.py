@@ -5,6 +5,8 @@ import contractions
 import spacy
 import spacy_experimental
 
+import transcribe_demo as td
+
 from string import punctuation
 from spacy.tokens.span_group import SpanGroup
 from spacy.tokens import Span
@@ -14,18 +16,11 @@ import en_core_web_sm
 import en_coreference_web_trf
 
 
-def get_stopwords(stopword_file) -> list:
-    stopwords = []
-    try:
-        # Collect all stopwords from asl_stopwords.csv; add to it at any time
-        with open(stopword_file, newline="") as sw_file:
-            for word in csv.reader(sw_file):
-                stopwords.append(word[0])
-    except FileNotFoundError:
-        pass
-    return stopwords
+stopwords = ('a', 'an', 'the', 'of', 'to', 'be', 'are', 'is', 'as', 'so', 'if', 'it', 'for')
 
 
+# Get transcription from text file, if needed
+# Previously used in testing
 def get_transcription(transcription_file) -> str:
     transcription = ''
     try:
@@ -40,11 +35,7 @@ def get_transcription(transcription_file) -> str:
 
 def get_proper_nouns(doc) -> list:
     # Proper noun extraction
-    proper_nouns = []
-    for word in doc:
-        if word.pos_ == 'PROPN':
-            proper_nouns.append(word.text)
-    return proper_nouns
+    return [word.text for word in doc if word.pos_ == 'PROPN']
 
 
 def get_corefs(doc, include_heads) -> list[list[str]]:
@@ -72,12 +63,13 @@ def tokenize_sentences(sentences) -> list[list]:
 
 def remove_preliminaries(tokens, *prelims) -> list:
     # Remove all punctuation/stopwords from token list; leaves only words
-    words = [[] for l in range(len(tokens))]
-    for i in range(len(tokens)):
+    length: int = len(tokens)
+    words = [[] for l in range(length)]
+    for i in range(length):
         for j in range(len(tokens[i])):
-            token = tokens[i][j].lower()
+            token: str = tokens[i][j]
             for prelim in prelims:
-                if token not in punctuation and token not in prelim:
+                if token.lower() not in prelim:
                     words[i].append(token)
     return words
 
@@ -91,7 +83,6 @@ def spacify(doc) -> list[dict]:
     # Returns a list of dicts
     features = []
     corefs = get_corefs(doc, True)
-    print(corefs)
     for token in doc:
         token_feats = {
             'token': token.text,
@@ -113,6 +104,7 @@ def aslify(features: list) -> str:
 
 
 def main():
+    # Load the pre-trained spaCy models
     nlp = en_core_web_sm.load()
     nlp_coref = en_coreference_web_trf.load()
     nlp_coref.replace_listeners('transformer', 'coref', ['model.tok2vec'])
@@ -120,12 +112,12 @@ def main():
     nlp.add_pipe('coref', source=nlp_coref)
     nlp.add_pipe('span_resolver', source=nlp_coref)
 
-    transcription = expand_contractions(get_transcription("transcription.txt"))
+    # Run the transcribe_demo file, and get the transcript as a str
+    td.main()
+    transcription = expand_contractions(td.get_transcript(td.transcription))
     print(transcription)
     doc = nlp(transcription)
 
-    stopwords = get_stopwords("asl_stopwords.csv")
-    #print(stopwords)
     proper_nouns = get_proper_nouns(doc)
     #print(proper_nouns)
 
@@ -135,11 +127,7 @@ def main():
     #    print(get_proper_nouns(nlp(sentence)))
 
     tokens = tokenize_sentences(sentences)
-    #print(tokens)
-    words = remove_preliminaries(tokens, stopwords)
-    #print(words)
-
-    #print(get_corefs(doc, False))
+    words = remove_preliminaries(tokens, stopwords, punctuation)
 
     for test in spacify(doc):
         print(test)

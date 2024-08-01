@@ -11,6 +11,8 @@ from queue import Queue
 from time import sleep
 from sys import platform
 
+transcription = ['']
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -67,12 +69,13 @@ def main():
     record_timeout = args.record_timeout
     phrase_timeout = args.phrase_timeout
 
-    transcription = ['']
+    global transcription
+    #transcription = ['']
 
     with source:
         recorder.adjust_for_ambient_noise(source)
 
-    def record_callback(_, audio:sr.AudioData) -> None:
+    def record_callback(_, audio: sr.AudioData) -> None:
         """
         Threaded callback function to receive audio data when recordings finish.
         audio: An AudioData containing the recorded bytes.
@@ -115,16 +118,16 @@ def main():
             result = audio_model.transcribe(audio_np, fp16=torch.cuda.is_available())
             text = result['text'].strip()
 
-            # If we detected a pause between recordings, add a new item to our transcription.
-            # Otherwise edit the existing one.
+            # If we detect a pause between recordings, add a new item to our transcription.
+            # Otherwise, edit the existing one.
             if phrase_complete:
                 transcription.append(text)
             else:
                 transcription[-1] = text
 
             # Clear the console to reprint the updated transcription.
-            os.system('cls' if os.name=='nt' else 'clear')
-            #print(transcription[-1])
+            os.system('cls' if os.name == 'nt' else 'clear')
+            # print(transcription[-1])
             for line in transcription:
                 print(line)
             # Flush stdout.
@@ -147,6 +150,11 @@ def main():
     for line in transcription:
         f.write(line + ' ')
     f.close()
+
+
+# Use this to avoid writing to/reading from file each time
+def get_transcript(tr: list[str]) -> str:
+    return ' '.join(map(str, tr))
 
 
 if __name__ == "__main__":
