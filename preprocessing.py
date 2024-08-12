@@ -5,6 +5,7 @@ import contractions
 import spacy
 import spacy_experimental
 
+# The other file
 import transcribe_demo as td
 
 from string import punctuation
@@ -15,16 +16,17 @@ from spacy.tokens import Span
 import en_core_web_sm
 import en_coreference_web_trf
 
-
+# Stopwords are the words that are NOT to be used in the finalized ASL sentence
+# Mostly articles and conjunctions
+# NOT finalized, add as you go
 stopwords = ('a', 'an', 'the', 'of', 'to', 'be', 'are', 'is', 'as', 'so', 'if', 'it', 'for')
 
 
 # Get transcription from text file, if needed
-# Previously used in testing
+# (Previously used in testing)
 def get_transcription(transcription_file) -> str:
     transcription = ''
     try:
-        # Convert transcription text file to a string
         with open(transcription_file, "r") as txt_obj:
             transcription = txt_obj.read()
             txt_obj.close()
@@ -33,8 +35,8 @@ def get_transcription(transcription_file) -> str:
     return transcription
 
 
+# Proper noun extraction
 def get_proper_nouns(doc) -> list:
-    # Proper noun extraction
     return [word.text for word in doc if word.pos_ == 'PROPN']
 
 
@@ -51,21 +53,23 @@ def get_corefs(doc, include_heads) -> list[list[str]]:
         return coref_clusters
 
 
+# Split transcription into sentences based off punctuation
 def get_sentences(transcription) -> list:
-    # Split transcription into sentences based off punctuation
     return tk.sent_tokenize(transcription)
 
 
+# Break apart sentences into smaller components; includes partial contractions and punctuation
 def tokenize_sentences(sentences) -> list[list]:
-    # Break apart sentences into smaller components; includes partial contractions and punctuation
     return [tk.word_tokenize(sentence) for sentence in sentences]
 
 
+# Remove all punctuation/stopwords from token list; leaves only words
 def remove_preliminaries(tokens, *prelims) -> list:
-    # Remove all punctuation/stopwords from token list; leaves only words
     length: int = len(tokens)
     words = [[] for l in range(length)]
     for i in range(length):
+        # Yes, these loops can be optimized
+        # No, I do not care
         for j in range(len(tokens[i])):
             token: str = tokens[i][j]
             for prelim in prelims:
@@ -74,13 +78,16 @@ def remove_preliminaries(tokens, *prelims) -> list:
     return words
 
 
+# Deals with contracted words, so they do not have to be removed after tokenization
 def expand_contractions(transcription) -> str:
-    # Deals with contracted words, so they do not have to be removed after tokenization
     return contractions.fix(transcription)
 
 
+# Collect a feature set for each word to make them easier to process in the future
+# A 'token' is literally just the word/punctuation
+# A 'lemma' is the base of a word, not necessarily the root word
+# A 'pos' is just the part of speech (see spacy doc for list of abreviations)
 def spacify(doc) -> list[dict]:
-    # Returns a list of dicts
     features = []
     corefs = get_corefs(doc, True)
     for token in doc:
@@ -99,11 +106,15 @@ def spacify(doc) -> list[dict]:
     return features
 
 
+# The purpose of this function is to use basic rules of ASL glossing to convert the preprocessed sentences into an ASL glossed sentence
+# Need to create a glossary of tagged text for training (absolutely NOT doing that by hand alone)
+# Currently stuck here
 def aslify(features: list) -> str:
-    return ''
+    ...
 
 
 def main():
+
     # Load the pre-trained spaCy models
     nlp = en_core_web_sm.load()
     nlp_coref = en_coreference_web_trf.load()
@@ -119,12 +130,8 @@ def main():
     doc = nlp(transcription)
 
     proper_nouns = get_proper_nouns(doc)
-    #print(proper_nouns)
 
     sentences = get_sentences(transcription)
-    #print(sentences)
-    #for sentence in sentences:
-    #    print(get_proper_nouns(nlp(sentence)))
 
     tokens = tokenize_sentences(sentences)
     words = remove_preliminaries(tokens, stopwords, punctuation)
