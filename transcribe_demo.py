@@ -94,7 +94,7 @@ def main():
     while True:
         if keyboard.is_pressed('q'):
             break
-        now = datetime.utcnow()
+        now = datetime.now()
         # Pull raw recorded audio from the queue
         if not data_queue.empty():
             phrase_complete = False

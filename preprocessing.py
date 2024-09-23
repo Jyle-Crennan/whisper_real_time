@@ -1,6 +1,6 @@
 import csv
 import string
-import nltk.tokenize as tk
+import nltk
 import contractions
 import spacy
 import spacy_experimental
@@ -55,12 +55,12 @@ def get_corefs(doc, include_heads) -> list[list[str]]:
 
 # Split transcription into sentences based off punctuation
 def get_sentences(transcription) -> list:
-    return tk.sent_tokenize(transcription)
+    return nltk.tokenizer.sent_tokenize(transcription)
 
 
 # Break apart sentences into smaller components; includes partial contractions and punctuation
 def tokenize_sentences(sentences) -> list[list]:
-    return [tk.word_tokenize(sentence) for sentence in sentences]
+    return [nltk.tokenizer.word_tokenize(sentence) for sentence in sentences]
 
 
 # Remove all punctuation/stopwords from token list; leaves only words
